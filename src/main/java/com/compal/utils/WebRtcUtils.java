@@ -30,9 +30,10 @@ public class WebRtcUtils implements AppRTCClient.SignalingEvents,
 
     private static final String TAG = "WebRtcUtils";
 
-    private static String SignalingWsUrl = "ws://192.168.10.252";
-    private static String ip = "";
-    private static String roomId = "";
+    public static String SignalingWsUrl = "ws://192.168.10.252";
+    public static String ip = "";
+    public static String roomId = "";
+
     public static final String EXTRA_ROOMID = "org.appspot.apprtc.ROOMID";
     public static final String EXTRA_URLPARAMETERS = "org.appspot.apprtc.URLPARAMETERS";
     public static final String EXTRA_LOOPBACK = "org.appspot.apprtc.LOOPBACK";
@@ -105,8 +106,6 @@ public class WebRtcUtils implements AppRTCClient.SignalingEvents,
     }
 
     private WebRtcUtils(Size previewSize) {
-        readConfig();
-
         signalingParameters = null;
         VideoSink remoteProxyRenderer = videoFrame -> LogUtils.v(TAG, "remoteProxyRenderer onFrame");
         remoteSinks.add(remoteProxyRenderer);
@@ -206,13 +205,6 @@ public class WebRtcUtils implements AppRTCClient.SignalingEvents,
         } else {
             LogUtils.e(TAG, "peerConnectionClient == null");
         }
-    }
-
-    private void readConfig() {
-        roomId = "80228";
-        ip = "192.168.10.182";
-        SignalingWsUrl = "ws://" + ip;
-        LogUtils.i(TAG, "signaling server url is " + SignalingWsUrl + " room is " + roomId);
     }
 
     @Override
