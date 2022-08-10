@@ -1,24 +1,4 @@
 <resources>
-    <string name="app_name">LibWebRtc</string>
-
-    <string name="main_activity">CloudXR WVR Client</string>
-    <string name="settings_name" translatable="false">AppRTC Settings</string>
-    <string name="disconnect_call">Disconnect Call</string>
-    <string name="room_description">
-            Please enter a room name. Room names are shared with everyone, so think
-            of something unique and send it to a friend.
-        </string>
-    <string name="favorites">Favorites</string>
-    <string name="no_favorites">No favorites</string>
-    <string name="invalid_url_title">Invalid URL</string>
-    <string name="invalid_url_text">The URL or room name you entered resulted in an invalid URL: %1$s </string>
-    <string name="channel_error_title">Connection error</string>
-    <string name="connecting_to">Connecting to: %1$s</string>
-    <string name="missing_url">FATAL ERROR: Missing URL to connect to.</string>
-    <string name="camera2_texture_only_error">Camera2 only supports capturing to texture. Either disable Camera2 or enable capturing to texture in the options.</string>
-    <string name="ok">OK</string>
-    <string name="switch_camera">Switch front/back camera</string>
-    <string name="capture_format_change_text">Slide to change capture format</string>
     <string name="muted">Muted</string>
     <string name="toggle_debug">Toggle debug view</string>
     <string name="toggle_mic">Toggle microphone on/off</string>
@@ -27,9 +7,6 @@
     <string name="connect_description">Connect to the room</string>
     <string name="add_favorite_description">Add favorite</string>
     <string name="format_description">%1$dx%2$d @ %3$d fps</string>
-    <string name="missing_permissions_try_again">The application is missing permissions. It might not work correctly. Do you want to try again?</string>
-    <string name="yes">Yes</string>
-    <string name="no">No</string>
     <!-- Settings strings. -->
     <string name="pref_room_key">room_preference</string>
     <string name="pref_room_list_key">room_list_preference</string>
