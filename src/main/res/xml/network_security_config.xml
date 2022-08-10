@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- 匹配子域名 example.com -->
+        <domain includeSubdomains="true">192.168.10.182</domain>
+        <!-- 仅匹配域名 api.baidu.com -->
+        <domain includeSubdomains="false">api.baidu.com</domain>
+    </domain-config>
+</network-security-config>
