@@ -146,28 +146,22 @@ public class WebRtcUtils implements AppRTCClient.SignalingEvents,
                         intent.getBooleanExtra(EXTRA_DISABLE_WEBRTC_AGC_AND_HPF, false),
                         intent.getBooleanExtra(EXTRA_ENABLE_RTCEVENTLOG, false),
                         dataChannelParameters);
-        //LogUtils.d(TAG, "VIDEO_FILE: '" + intent.getStringExtra(EXTRA_VIDEO_FILE_AS_CAMERA) + "'");
-        int runTimeMs = 0;
+    }
+
+    public void startCall(Context context) {
+        LogUtils.v(TAG, "start Call");
         // Create connection client. Use DirectRTCClient if room name is an IP otherwise use the standard WebSocketRTCClient.
         if (loopback || !DirectRTCClient.IP_PATTERN.matcher(roomId).matches()) {
             LogUtils.i(TAG, "Using WebSocketRTCClient");
-            appRtcClient = new WebSocketRTCClient((AppRTCClient.SignalingEvents) this);
+            appRtcClient = new WebSocketRTCClient(this);
         } else {
             LogUtils.i(TAG, "Using DirectRTCClient because room name looks like an IP.");
-            appRtcClient = new DirectRTCClient((AppRTCClient.SignalingEvents) this);
+            appRtcClient = new DirectRTCClient(this);
         }
         // Create connection parameters.
         String urlParameters = "";
         roomConnectionParameters =
                 new AppRTCClient.RoomConnectionParameters(SignalingWsUrl, roomId, loopback, urlParameters);
-    }
-
-    public void startCall(Context context) {
-        LogUtils.v(TAG, "start Call");
-        if (appRtcClient == null) {
-            LogUtils.e(TAG, "AppRTC client is not allocated for a call.");
-            return;
-        }
         final EglBase eglBase = EglBase.create();
         peerConnectionClient = new PeerConnectionClient(
                 context, eglBase, peerConnectionParameters, WebRtcUtils.this);
