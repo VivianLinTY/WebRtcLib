@@ -12,18 +12,21 @@ import com.appwebrtc.DirectRTCClient;
 import com.appwebrtc.PeerConnectionClient;
 import com.appwebrtc.WebSocketRTCClient;
 import com.appwebrtc.util.AppRTCUtils;
+import com.google.mediapipe.formats.proto.LandmarkProto;
+import com.google.mediapipe.solutions.hands.HandLandmark;
+import com.google.mediapipe.solutions.hands.Hands;
+import com.google.mediapipe.solutions.hands.HandsResult;
 
 import org.webrtc.EglBase;
 import org.webrtc.IceCandidate;
 import org.webrtc.PeerConnectionFactory;
 import org.webrtc.SessionDescription;
 import org.webrtc.StatsReport;
-import org.webrtc.VideoCapturer;
 import org.webrtc.VideoSink;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 public class WebRtcUtils implements AppRTCClient.SignalingEvents,
         PeerConnectionClient.PeerConnectionEvents {
@@ -77,6 +80,9 @@ public class WebRtcUtils implements AppRTCClient.SignalingEvents,
     public static final String EXTRA_ID = "org.appspot.apprtc.ID";
     public static final String EXTRA_ENABLE_RTCEVENTLOG = "org.appspot.apprtc.ENABLE_RTCEVENTLOG";
 
+    private static final int LABEL_LEFT_HAND = 0;
+    private static final int LABEL_RIGHT_HAND = 1;
+
     private static final int CAPTURE_PERMISSION_REQUEST_CODE = 1;
     private static final int STAT_CALLBACK_PERIOD = 1000;
 
@@ -86,8 +92,7 @@ public class WebRtcUtils implements AppRTCClient.SignalingEvents,
     private AppRTCClient appRtcClient;
     @Nullable
     private AppRTCClient.SignalingParameters signalingParameters;
-    private PeerConnectionClient.PeerConnectionParameters peerConnectionParameters;
-    private AppRTCClient.RoomConnectionParameters roomConnectionParameters;
+    private final PeerConnectionClient.PeerConnectionParameters peerConnectionParameters;
     @Nullable
     AppRTCAudioManager audioManager;
     private final List<VideoSink> remoteSinks = new ArrayList<>();
@@ -148,7 +153,7 @@ public class WebRtcUtils implements AppRTCClient.SignalingEvents,
                         dataChannelParameters);
     }
 
-    public void startCall(Context context) {
+    public void startCall(Context context, boolean transportGesture) {
         LogUtils.v(TAG, "start Call");
         // Create connection client. Use DirectRTCClient if room name is an IP otherwise use the standard WebSocketRTCClient.
         if (loopback || !DirectRTCClient.IP_PATTERN.matcher(roomId).matches()) {
@@ -160,8 +165,7 @@ public class WebRtcUtils implements AppRTCClient.SignalingEvents,
         }
         // Create connection parameters.
         String urlParameters = "";
-        roomConnectionParameters =
-                new AppRTCClient.RoomConnectionParameters(SignalingWsUrl, roomId, loopback, urlParameters);
+        AppRTCClient.RoomConnectionParameters roomConnectionParameters = new AppRTCClient.RoomConnectionParameters(SignalingWsUrl, roomId, loopback, urlParameters);
         final EglBase eglBase = EglBase.create();
         peerConnectionClient = new PeerConnectionClient(
                 context, eglBase, peerConnectionParameters, WebRtcUtils.this);
@@ -180,20 +184,20 @@ public class WebRtcUtils implements AppRTCClient.SignalingEvents,
         audioManager = AppRTCAudioManager.create(context);
         // Store existing audio settings and change audio mode to
         // MODE_IN_COMMUNICATION for best possible VoIP performance.
-        audioManager.start(new AppRTCAudioManager.AudioManagerEvents() {
-            // This method will be called each time the number of available audio devices has changed.
-            @Override
-            public void onAudioDeviceChanged(AppRTCAudioManager.AudioDevice device,
-                                             Set<AppRTCAudioManager.AudioDevice> availableDevices) {
-                //onAudioManagerDevicesChanged(device, availableDevices);
-                LogUtils.d(TAG, "onAudioManagerDevicesChanged: " + availableDevices + ", " + "selected: " + device);
-                // TODO: add callback handler.
-            }
+        // This method will be called each time the number of available audio devices has changed.
+        audioManager.start((device, availableDevices) -> {
+            //onAudioManagerDevicesChanged(device, availableDevices);
+            LogUtils.d(TAG, "onAudioManagerDevicesChanged: " + availableDevices + ", " + "selected: " + device);
+            // TODO: add callback handler.
         });
+        if (transportGesture) {
+            HandResultUtils.getInstance().registerHandListener(context, this::handleLandmarkForWebRTC);
+        }
     }
 
     public void stopCall() {
         LogUtils.d(TAG, "WebRTC stop");
+        HandResultUtils.getInstance().unRegisterHandListener();
         if (peerConnectionClient != null) {
             disconnect();
         } else {
@@ -210,7 +214,7 @@ public class WebRtcUtils implements AppRTCClient.SignalingEvents,
         final long delta = System.currentTimeMillis() - callStartedTimeMs;
         signalingParameters = params;
         LogUtils.d(TAG, "Creating peer connection, delay=" + delta + "ms");
-        VideoCapturer videoCapturer = null;
+//        VideoCapturer videoCapturer = null;
 //        if (peerConnectionParameters.videoCallEnabled) {
 //            videoCapturer = createVideoCapturer();
 //        }
@@ -249,7 +253,7 @@ public class WebRtcUtils implements AppRTCClient.SignalingEvents,
         }
         LogUtils.d(TAG, "Received remote " + sdp.type + ", delay=" + delta + "ms");
         peerConnectionClient.setRemoteDescription(sdp);
-        if (!signalingParameters.initiator) {
+        if (null != signalingParameters && !signalingParameters.initiator) {
             LogUtils.d(TAG, "Creating ANSWER...");
             // Create answer. Answer SDP will be sent to offering client in
             // PeerConnectionEvents.onLocalDescription event.
@@ -329,7 +333,7 @@ public class WebRtcUtils implements AppRTCClient.SignalingEvents,
             } else {
                 appRtcClient.sendAnswerSdp(sdp);
             }
-            if (peerConnectionParameters.videoMaxBitrate > 0) {
+            if (null != peerConnectionClient && peerConnectionParameters.videoMaxBitrate > 0) {
                 LogUtils.d(TAG, "Set video maximum bitrate: " + peerConnectionParameters.videoMaxBitrate);
                 peerConnectionClient.setVideoMaxBitrate(peerConnectionParameters.videoMaxBitrate);
             }
@@ -386,5 +390,82 @@ public class WebRtcUtils implements AppRTCClient.SignalingEvents,
     @Override
     public void onPeerConnectionError(String description) {
         LogUtils.e(TAG, "onPeerConnectionError: " + description);
+    }
+
+    private void handleLandmarkForWebRTC(HandsResult result) {
+        if (result.multiHandWorldLandmarks().isEmpty() || result.multiHandedness().isEmpty()) {
+            return;
+        }
+
+        int index = 0;
+        for (LandmarkProto.NormalizedLandmarkList landmarkList : result.multiHandLandmarks()) {
+            String label = result.multiHandedness().get(index).getLabel();
+            LogUtils.d(TAG, label + " hand.");
+            LandmarkProto.NormalizedLandmark wrist = landmarkList.getLandmarkList().get(HandLandmark.WRIST);
+            //            LogUtils.d(TAG, String.format("wrist coordinates: x=%f m, y=%f m, z=%f m", wrist.getX(), wrist.getY(), wrist.getZ()));
+            LandmarkProto.NormalizedLandmark tCmc = landmarkList.getLandmarkList().get(HandLandmark.THUMB_CMC);
+            //            LogUtils.d(TAG, String.format("tCmc coordinates: x=%f m, y=%f m, z=%f m", tCmc.getX(), tCmc.getY(), tCmc.getZ()));
+            LandmarkProto.NormalizedLandmark tMcp = landmarkList.getLandmarkList().get(HandLandmark.THUMB_MCP);
+            //            LogUtils.d(TAG, String.format("tMcp coordinates: x=%f m, y=%f m, z=%f m", tMcp.getX(), tMcp.getY(), tMcp.getZ()));
+            LandmarkProto.NormalizedLandmark tIp = landmarkList.getLandmarkList().get(HandLandmark.THUMB_IP);
+            //            LogUtils.d(TAG, String.format("tIp coordinates: x=%f m, y=%f m, z=%f m", tIp.getX(), tIp.getY(), tIp.getZ()));
+            LandmarkProto.NormalizedLandmark tTip = landmarkList.getLandmarkList().get(HandLandmark.THUMB_TIP);
+            //            LogUtils.d(TAG, String.format("tTip coordinates: x=%f m, y=%f m, z=%f m", tTip.getX(), tTip.getY(), tTip.getZ()));
+            LandmarkProto.NormalizedLandmark iMcp = landmarkList.getLandmarkList().get(HandLandmark.INDEX_FINGER_MCP);
+            //            LogUtils.d(TAG, String.format("iMcp coordinates: x=%f m, y=%f m, z=%f m", iMcp.getX(), iMcp.getY(), iMcp.getZ()));
+            LandmarkProto.NormalizedLandmark iPip = landmarkList.getLandmarkList().get(HandLandmark.INDEX_FINGER_PIP);
+            //            LogUtils.d(TAG, String.format("iPip coordinates: x=%f m, y=%f m, z=%f m", iPip.getX(), iPip.getY(), iPip.getZ()));
+            LandmarkProto.NormalizedLandmark iDip = landmarkList.getLandmarkList().get(HandLandmark.INDEX_FINGER_DIP);
+            //            LogUtils.d(TAG, String.format("iDip coordinates: x=%f m, y=%f m, z=%f m", iDip.getX(), iDip.getY(), iDip.getZ()));
+            LandmarkProto.NormalizedLandmark iTip = landmarkList.getLandmarkList().get(HandLandmark.INDEX_FINGER_TIP);
+            //            LogUtils.d(TAG, String.format("iTip coordinates: x=%f m, y=%f m, z=%f m", iTip.getX(), iTip.getY(), iTip.getZ()));
+            LandmarkProto.NormalizedLandmark mMcp = landmarkList.getLandmarkList().get(HandLandmark.MIDDLE_FINGER_MCP);
+            //            LogUtils.d(TAG, String.format("mMcp coordinates: x=%f m, y=%f m, z=%f m", mMcp.getX(), mMcp.getY(), mMcp.getZ()));
+            LandmarkProto.NormalizedLandmark mPip = landmarkList.getLandmarkList().get(HandLandmark.MIDDLE_FINGER_PIP);
+            //            LogUtils.d(TAG, String.format("mPip coordinates: x=%f m, y=%f m, z=%f m", mPip.getX(), mPip.getY(), mPip.getZ()));
+            LandmarkProto.NormalizedLandmark mDip = landmarkList.getLandmarkList().get(HandLandmark.MIDDLE_FINGER_DIP);
+            //            LogUtils.d(TAG, String.format("mDip coordinates: x=%f m, y=%f m, z=%f m", mDip.getX(), mDip.getY(), mDip.getZ()));
+            LandmarkProto.NormalizedLandmark mTip = landmarkList.getLandmarkList().get(HandLandmark.MIDDLE_FINGER_TIP);
+            //            LogUtils.d(TAG, String.format("mTip coordinates: x=%f m, y=%f m, z=%f m", mTip.getX(), mTip.getY(), mTip.getZ()));
+            LandmarkProto.NormalizedLandmark rMcp = landmarkList.getLandmarkList().get(HandLandmark.RING_FINGER_MCP);
+            //            LogUtils.d(TAG, String.format("rMcp coordinates: x=%f m, y=%f m, z=%f m", rMcp.getX(), rMcp.getY(), rMcp.getZ()));
+            LandmarkProto.NormalizedLandmark rPip = landmarkList.getLandmarkList().get(HandLandmark.RING_FINGER_PIP);
+            //            LogUtils.d(TAG, String.format("rPip coordinates: x=%f m, y=%f m, z=%f m", rPip.getX(), rPip.getY(), rPip.getZ()));
+            LandmarkProto.NormalizedLandmark rDip = landmarkList.getLandmarkList().get(HandLandmark.RING_FINGER_DIP);
+            //            LogUtils.d(TAG, String.format("rDip coordinates: x=%f m, y=%f m, z=%f m", rDip.getX(), rDip.getY(), rDip.getZ()));
+            LandmarkProto.NormalizedLandmark rTip = landmarkList.getLandmarkList().get(HandLandmark.RING_FINGER_TIP);
+            //            LogUtils.d(TAG, String.format("rTip coordinates: x=%f m, y=%f m, z=%f m", rTip.getX(), rTip.getY(), rTip.getZ()));
+            LandmarkProto.NormalizedLandmark pMcp = landmarkList.getLandmarkList().get(HandLandmark.PINKY_MCP);
+            //            LogUtils.d(TAG, String.format("pMcp coordinates: x=%f m, y=%f m, z=%f m", pMcp.getX(), pMcp.getY(), pMcp.getZ()));
+            LandmarkProto.NormalizedLandmark pPip = landmarkList.getLandmarkList().get(HandLandmark.PINKY_PIP);
+            //            LogUtils.d(TAG, String.format("pPip coordinates: x=%f m, y=%f m, z=%f m", pPip.getX(), pPip.getY(), pPip.getZ()));
+            LandmarkProto.NormalizedLandmark pDip = landmarkList.getLandmarkList().get(HandLandmark.PINKY_DIP);
+            //            LogUtils.d(TAG, String.format("pDip coordinates: x=%f m, y=%f m, z=%f m", pDip.getX(), pDip.getY(), pDip.getZ()));
+            LandmarkProto.NormalizedLandmark pTip = landmarkList.getLandmarkList().get(HandLandmark.PINKY_TIP);
+            //            LogUtils.d(TAG, String.format("pTip coordinates: x=%f m, y=%f m, z=%f m\n\n", pTip.getX(), pTip.getY(), pTip.getZ()));
+
+            index++;
+
+            byte[] temp = new byte[]{
+                    (byte) ((label.equals("Left") ? LABEL_LEFT_HAND : LABEL_RIGHT_HAND)), (byte) (wrist.getX() * 100), (byte) (tCmc.getX() * 100),
+                    (byte) (tMcp.getX() * 100), (byte) (tIp.getX() * 100), (byte) (tTip.getX() * 100), (byte) (iMcp.getX() * 100), (byte) (iPip.getX() * 100),
+                    (byte) (iDip.getX() * 100), (byte) (iTip.getX() * 100), (byte) (mMcp.getX() * 100), (byte) (mPip.getX() * 100), (byte) (mDip.getX() * 100),
+                    (byte) (mTip.getX() * 100), (byte) (rMcp.getX() * 100), (byte) (rPip.getX() * 100), (byte) (rDip.getX() * 100), (byte) (rTip.getX() * 100),
+                    (byte) (pMcp.getX() * 100), (byte) (pPip.getX() * 100), (byte) (pDip.getX() * 100), (byte) (pTip.getX() * 100), (byte) (wrist.getY() * 100),
+                    (byte) (tCmc.getY() * 100), (byte) (tMcp.getY() * 100), (byte) (tIp.getY() * 100), (byte) (tTip.getY() * 100), (byte) (iMcp.getY() * 100),
+                    (byte) (iPip.getY() * 100), (byte) (iDip.getY() * 100), (byte) (iTip.getY() * 100), (byte) (mMcp.getY() * 100), (byte) (mPip.getY() * 100),
+                    (byte) (mDip.getY() * 100), (byte) (mTip.getY() * 100), (byte) (rMcp.getY() * 100), (byte) (rPip.getY() * 100), (byte) (rDip.getY() * 100),
+                    (byte) (rTip.getY() * 100), (byte) (pMcp.getY() * 100), (byte) (pPip.getY() * 100), (byte) (pDip.getY() * 100), (byte) (pTip.getY() * 100),
+                    (byte) (wrist.getZ() * 100), (byte) (tCmc.getZ() * 100), (byte) (tMcp.getZ() * 100), (byte) (tIp.getZ() * 100), (byte) (tTip.getZ() * 100),
+                    (byte) (iMcp.getZ() * 100), (byte) (iPip.getZ() * 100), (byte) (iDip.getZ() * 100), (byte) (iTip.getZ() * 100), (byte) (mMcp.getZ() * 100),
+                    (byte) (mPip.getZ() * 100), (byte) (mDip.getZ() * 100), (byte) (mTip.getZ() * 100), (byte) (rMcp.getZ() * 100), (byte) (rPip.getZ() * 100),
+                    (byte) (rDip.getZ() * 100), (byte) (rTip.getZ() * 100), (byte) (pMcp.getZ() * 100), (byte) (pPip.getZ() * 100), (byte) (pDip.getZ() * 100),
+                    (byte) (pTip.getZ() * 100)
+            };
+
+            if (null != peerConnectionClient) {
+                peerConnectionClient.sendData(ByteBuffer.wrap(temp));
+            }
+        }
     }
 }
