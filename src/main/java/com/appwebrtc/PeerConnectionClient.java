@@ -1344,6 +1344,19 @@ public class PeerConnectionClient {
         return fieldTrials;
     }
 
+    //@array : NV21
+    public void doStreaming(byte[] array, int fwidth, int fheight) {
+        if(videoSource == null) return;
+        long timestampNS = TimeUnit.MILLISECONDS.toNanos(SystemClock.elapsedRealtime());
+        NV21Buffer buffer = new NV21Buffer(array, fwidth, fheight, null);
+        VideoFrame videoFrame = new VideoFrame(buffer, 0, timestampNS);
+        if(videoSource == null) {
+            Log.e(TAG, "video source is null.");
+        }
+        videoSource.getCapturerObserver().onFrameCaptured(videoFrame);
+        videoFrame.release();
+    }
+
 
     public void doStreaming(int[] fpixels, int fwidth, int fheight) {
         if(videoSource == null) return;
