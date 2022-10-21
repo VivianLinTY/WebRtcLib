@@ -8,6 +8,7 @@ import android.util.Log;
 
 
 import com.appwebrtc.util.AsyncHttpURLConnection;
+import com.compal.utils.WebRtcUtils;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -65,7 +66,7 @@ public class RoomParametersFetcher {
 
     public void makeRequest() {
         AsyncHttpURLConnection httpConnection =
-                new AsyncHttpURLConnection("GET", "http://192.168.10.182:80", roomMessage,
+                new AsyncHttpURLConnection("GET", "http://" + WebRtcUtils.ip + ":80", roomMessage,
                         new AsyncHttpURLConnection.AsyncHttpEvents() {
                             @Override
                             public void onHttpError(String errorMessage) {
