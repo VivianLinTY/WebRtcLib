@@ -143,7 +143,7 @@ public class AppRTCAudioManager {
     }
 
     private AppRTCAudioManager(Context context) {
-        //ThreadUtils.checkIsOnMainThread();
+        ThreadUtils.checkIsOnMainThread();
         apprtcContext = context;
         audioManager = ((AudioManager) context.getSystemService(Context.AUDIO_SERVICE));
         bluetoothManager = AppRTCBluetoothManager.create(context, this);
@@ -177,7 +177,7 @@ public class AppRTCAudioManager {
 
     // TODO: audioManager.requestAudioFocus() is deprecated.
     public void start(AudioManagerEvents audioManagerEvents) {
-        //ThreadUtils.checkIsOnMainThread();
+        ThreadUtils.checkIsOnMainThread();
         if (amState == AudioManagerState.RUNNING) {
             LogUtils.e(TAG, "AppRTCAudioManager is already active");
             return;
@@ -263,7 +263,7 @@ public class AppRTCAudioManager {
 
 
     public void stop() {
-        //ThreadUtils.checkIsOnMainThread();
+        ThreadUtils.checkIsOnMainThread();
         if (amState != AudioManagerState.RUNNING) {
             LogUtils.e(TAG, "Trying to stop AppRTCAudioManager in incorrect state: " + amState);
             return;
@@ -312,7 +312,7 @@ public class AppRTCAudioManager {
      * TODO: add usage of this method in the AppRTCMobile client.
      */
     public void setDefaultAudioDevice(AudioDevice defaultDevice) {
-        //ThreadUtils.checkIsOnMainThread();
+        ThreadUtils.checkIsOnMainThread();
         switch (defaultDevice) {
             case SPEAKER_PHONE:
                 defaultAudioDevice = defaultDevice;
@@ -334,7 +334,7 @@ public class AppRTCAudioManager {
 
     /** Changes selection of the currently active audio device. */
     public void selectAudioDevice(AudioDevice device) {
-        //ThreadUtils.checkIsOnMainThread();
+        ThreadUtils.checkIsOnMainThread();
         if (!audioDevices.contains(device)) {
             LogUtils.e(TAG, "Can not select " + device + " from available " + audioDevices);
         }
@@ -343,12 +343,12 @@ public class AppRTCAudioManager {
     }
     /** Returns current set of available/selectable audio devices. */
     public Set<AudioDevice> getAudioDevices() {
-        //ThreadUtils.checkIsOnMainThread();
+        ThreadUtils.checkIsOnMainThread();
         return Collections.unmodifiableSet(new HashSet<>(audioDevices));
     }
     /** Returns the currently selected audio device. */
     public AudioDevice getSelectedAudioDevice() {
-        //ThreadUtils.checkIsOnMainThread();
+        ThreadUtils.checkIsOnMainThread();
         return selectedAudioDevice;
     }
 
@@ -413,7 +413,7 @@ public class AppRTCAudioManager {
      * TODO: add unit test to verify all state transitions.
      */
     public void updateAudioDeviceState() {
-        //ThreadUtils.checkIsOnMainThread();
+        ThreadUtils.checkIsOnMainThread();
         LogUtils.d(TAG, "--- updateAudioDeviceState: "
                 + "wired headset=" + hasWiredHeadset + ", "
                 + "BT state=" + bluetoothManager.getState());

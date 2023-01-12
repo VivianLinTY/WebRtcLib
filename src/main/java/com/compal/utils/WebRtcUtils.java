@@ -123,7 +123,7 @@ public class WebRtcUtils implements AppRTCClient.SignalingEvents,
         boolean tracing = intent.getBooleanExtra(EXTRA_TRACING, false);
 
         PeerConnectionClient.DataChannelParameters dataChannelParameters = null;
-        if (intent.getBooleanExtra(EXTRA_DATA_CHANNEL_ENABLED, false)) {
+        if (intent.getBooleanExtra(EXTRA_DATA_CHANNEL_ENABLED, true)) {
             dataChannelParameters = new PeerConnectionClient.DataChannelParameters(
                     intent.getBooleanExtra(EXTRA_ORDERED, true),
                     intent.getIntExtra(EXTRA_MAX_RETRANSMITS_MS, -1),

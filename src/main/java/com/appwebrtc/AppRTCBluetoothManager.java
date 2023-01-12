@@ -154,7 +154,7 @@ public class AppRTCBluetoothManager {
         return new AppRTCBluetoothManager(context, audioManager);
     }
     protected AppRTCBluetoothManager(Context context, AppRTCAudioManager audioManager) {
-        //ThreadUtils.checkIsOnMainThread();
+        ThreadUtils.checkIsOnMainThread();
         apprtcContext = context;
         apprtcAudioManager = audioManager;
         this.audioManager = getAudioManager(context);
@@ -166,7 +166,7 @@ public class AppRTCBluetoothManager {
 
     /** Returns the internal state. */
     public State getState() {
-        //ThreadUtils.checkIsOnMainThread();
+        ThreadUtils.checkIsOnMainThread();
         return bluetoothState;
     }
 
@@ -189,7 +189,7 @@ public class AppRTCBluetoothManager {
     // 未初始化-->耳机不可用-->耳机可用-->SCO连接中-->SCO连接上-->音频现在通过BT SCO路由。
     // 请注意，AppRTCAudioManager也参与驱动此状态更改
     public void start() {
-        //ThreadUtils.checkIsOnMainThread();
+        ThreadUtils.checkIsOnMainThread();
         LogUtils.d(TAG, TAG+" start");
         if (!hasPermission(apprtcContext, android.Manifest.permission.BLUETOOTH)) {
             LogUtils.w(TAG, "Process (pid=" + Process.myPid() + ") lacks BLUETOOTH permission");
@@ -237,7 +237,7 @@ public class AppRTCBluetoothManager {
 
     /** Stops and closes all components related to Bluetooth audio. */
     public void stop() {
-        //ThreadUtils.checkIsOnMainThread();
+        ThreadUtils.checkIsOnMainThread();
         LogUtils.d(TAG, "stop: BT state=" + bluetoothState);
         if (bluetoothAdapter == null) {
             return;
@@ -282,7 +282,7 @@ public class AppRTCBluetoothManager {
     // TODO: 我们是否应该为BT耳机添加虚拟语音呼叫支持，以及JBMR2和更高版本的支持。
     // 可能需要启动虚拟语音呼叫，因为许多设备不接受没有“呼叫”的SCO音频。
     public boolean startScoAudio() {
-        //ThreadUtils.checkIsOnMainThread();
+        ThreadUtils.checkIsOnMainThread();
         LogUtils.d(TAG, "startSco: BT state=" + bluetoothState + ", "
                 + "attempts: " + scoConnectionAttempts + ", "
                 + "SCO is on: " + isScoOn());
@@ -311,7 +311,7 @@ public class AppRTCBluetoothManager {
 
     /** Stops Bluetooth SCO connection with remote device. */
     public void stopScoAudio() {
-        //ThreadUtils.checkIsOnMainThread();
+        ThreadUtils.checkIsOnMainThread();
         LogUtils.d(TAG, "stopScoAudio: BT state=" + bluetoothState + ", "
                 + "SCO is on: " + isScoOn());
         if (bluetoothState != State.SCO_CONNECTING && bluetoothState != State.SCO_CONNECTED) {
@@ -403,7 +403,7 @@ public class AppRTCBluetoothManager {
 
     /** Ensures that the audio manager updates its list of available audio devices. */
     private void updateAudioDeviceState() {
-        //ThreadUtils.checkIsOnMainThread();
+        ThreadUtils.checkIsOnMainThread();
         LogUtils.d(TAG, "updateAudioDeviceState");
         apprtcAudioManager.updateAudioDeviceState();
     }
@@ -443,14 +443,14 @@ public class AppRTCBluetoothManager {
 
     /** Starts timer which times out after BLUETOOTH_SCO_TIMEOUT_MS milliseconds. */
     private void startTimer() {
-        //ThreadUtils.checkIsOnMainThread();
+        ThreadUtils.checkIsOnMainThread();
         LogUtils.d(TAG, "startTimer");
         handler.postDelayed(bluetoothTimeoutRunnable, BLUETOOTH_SCO_TIMEOUT_MS);
     }
 
     /** Cancels any outstanding timer tasks. */
     private void cancelTimer() {
-        //ThreadUtils.checkIsOnMainThread();
+        ThreadUtils.checkIsOnMainThread();
         LogUtils.d(TAG, "cancelTimer");
         handler.removeCallbacks(bluetoothTimeoutRunnable);
     }
@@ -460,7 +460,7 @@ public class AppRTCBluetoothManager {
      * happens when the BT device has been turned on during an ongoing call.
      */
     private void bluetoothTimeout() {
-        //ThreadUtils.checkIsOnMainThread();
+        ThreadUtils.checkIsOnMainThread();
         if (bluetoothState == State.UNINITIALIZED || bluetoothHeadset == null) {
             return;
         }
